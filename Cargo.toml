@@ -1,0 +1,18 @@
+[package]
+name = "gtk-glium-texture"
+edition = "2021"
+
+[dependencies]
+
+glium = { version = "0.34" }
+glow = { version = "0.13.0" }
+epoxy = { version = "0.1.0" }
+libloading = { version = "0.8.0" }
+im-rc = { version = "15", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
+
+gtk = { version = "0.8.1", package = "gtk4", features = ["v4_10"] }
+
+# used by gif-paintable example
+[dependencies.image]
+version = "0.24"
