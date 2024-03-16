@@ -1,59 +1,28 @@
 use std::{cell::RefCell, rc::Rc};
 
-use glium::{uniform, Frame, Surface};
+use glium::Frame;
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
 struct Renderer {
     context: Rc<glium::backend::Context>,
-    vertex_buffer: glium::VertexBuffer<crate::gl::Vertex>,
-    index_buffer: glium::IndexBuffer<u16>,
-    opengl_texture: glium::texture::CompressedTexture2d,
-    program: glium::Program,
+    draw_texture: crate::gl::DrawTexture,
 }
 
 impl Renderer {
     fn new(context: Rc<glium::backend::Context>) -> Self {
-        let opengl_texture = crate::gl::load_texture(&context);
-        let (vertex_buffer, index_buffer) = crate::gl::rectangle_vertices(&context);
-        let program = crate::gl::compile_program(&context);
-
+        let draw_texture = crate::gl::DrawTexture::new(&context);
         Self {
             context,
-            vertex_buffer,
-            index_buffer,
-            opengl_texture,
-            program,
+            draw_texture,
         }
     }
 
     fn draw(&self) {
-        let mut frame = Frame::new(
+        let frame = Frame::new(
             self.context.clone(),
-            dbg!(self.context.get_framebuffer_dimensions()),
+            self.context.get_framebuffer_dimensions(),
         );
-
-        // building the uniforms
-        let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32]
-            ],
-            tex: &self.opengl_texture
-        };
-
-        frame.clear_color(0.0, 0.0, 0.0, 0.5);
-        frame
-            .draw(
-                &self.vertex_buffer,
-                &self.index_buffer,
-                &self.program,
-                &uniforms,
-                &Default::default(),
-            )
-            .unwrap();
-        frame.finish().unwrap();
+        self.draw_texture.draw(frame);
     }
 }
 

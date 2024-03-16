@@ -27,14 +27,14 @@ fn main() -> glib::ExitCode {
         });
     }
 
+    // Spawn glium window (that works and draws texture!) in a separate thread
     std::thread::spawn(move || {
-        println!("Starting glium window");
-        glium::State::<glium::Application>::run_loop();
-        println!("glium runloop exited");
+        glium::State::run_loop();
     });
 
+    // Run GTK window (where textures don't render!) in main thread
     let application = gtk::Application::builder()
-        .application_id("com.github.gtk-rs.examples.glium-gl-area")
+        .application_id("com.example.not-working-gtk-textures")
         .build();
     application.connect_activate(build_ui);
     application.run()

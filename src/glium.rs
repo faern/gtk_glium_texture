@@ -1,5 +1,4 @@
-use glium::uniform;
-use glium::{Display, Surface};
+use glium::Display;
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::WindowSurface;
@@ -7,31 +6,33 @@ use raw_window_handle::HasRawWindowHandle;
 use std::num::NonZeroU32;
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 
-use crate::gl::Vertex;
-
-pub trait ApplicationContext {
-    fn draw_frame(&mut self, _display: &Display<WindowSurface>) {}
-    fn new(display: &Display<WindowSurface>) -> Self;
-    fn update(&mut self) {}
-    fn handle_window_event(
-        &mut self,
-        _event: &winit::event::WindowEvent,
-        _window: &winit::window::Window,
-    ) {
-    }
-    const WINDOW_TITLE: &'static str;
+pub struct Application {
+    draw_texture: crate::gl::DrawTexture,
 }
 
-pub struct State<T> {
+impl Application {
+    fn new(display: &Display<WindowSurface>) -> Self {
+        Self {
+            draw_texture: crate::gl::DrawTexture::new(display),
+        }
+    }
+
+    fn draw_frame(&mut self, display: &Display<WindowSurface>) {
+        let frame = display.draw();
+        self.draw_texture.draw(frame);
+    }
+}
+
+pub struct State {
     pub display: glium::Display<WindowSurface>,
     pub window: winit::window::Window,
-    pub context: T,
+    pub context: Application,
 }
 
-impl<T: ApplicationContext + 'static> State<T> {
+impl State {
     pub fn new<W>(event_loop: &winit::event_loop::EventLoopWindowTarget<W>, visible: bool) -> Self {
         let window_builder = winit::window::WindowBuilder::new()
-            .with_title(T::WINDOW_TITLE)
+            .with_title("Glium image example")
             .with_visible(visible);
         let config_template_builder = glutin::config::ConfigTemplateBuilder::new();
         let display_builder =
@@ -99,7 +100,7 @@ impl<T: ApplicationContext + 'static> State<T> {
         display: glium::Display<WindowSurface>,
         window: winit::window::Window,
     ) -> Self {
-        let context = T::new(&display);
+        let context = Application::new(&display);
         Self {
             display,
             window,
@@ -113,7 +114,7 @@ impl<T: ApplicationContext + 'static> State<T> {
             .with_any_thread(true)
             .build()
             .expect("event loop building");
-        let mut state: Option<State<T>> = None;
+        let mut state: Option<State> = None;
 
         let result = event_loop.run(move |event, window_target| {
             match event {
@@ -138,7 +139,6 @@ impl<T: ApplicationContext + 'static> State<T> {
                     }
                     winit::event::WindowEvent::RedrawRequested => {
                         if let Some(state) = &mut state {
-                            state.context.update();
                             state.context.draw_frame(&state.display);
                         }
                     }
@@ -156,65 +156,11 @@ impl<T: ApplicationContext + 'static> State<T> {
                         ..
                     } => window_target.exit(),
                     // Every other event
-                    ev => {
-                        if let Some(state) = &mut state {
-                            state.context.handle_window_event(&ev, &state.window);
-                        }
-                    }
+                    _ev => {}
                 },
                 _ => (),
             };
         });
         result.unwrap();
-    }
-}
-
-pub struct Application {
-    pub vertex_buffer: glium::VertexBuffer<Vertex>,
-    pub index_buffer: glium::IndexBuffer<u16>,
-    pub opengl_texture: glium::texture::CompressedTexture2d,
-    pub program: glium::Program,
-}
-
-impl ApplicationContext for Application {
-    const WINDOW_TITLE: &'static str = "Glium image example";
-
-    fn new(display: &Display<WindowSurface>) -> Self {
-        let opengl_texture = crate::gl::load_texture(display);
-        let (vertex_buffer, index_buffer) = crate::gl::rectangle_vertices(display);
-        let program = crate::gl::compile_program(display);
-
-        Self {
-            vertex_buffer,
-            index_buffer,
-            opengl_texture,
-            program,
-        }
-    }
-
-    fn draw_frame(&mut self, display: &Display<WindowSurface>) {
-        let mut frame = display.draw();
-        // building the uniforms
-        let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32]
-            ],
-            tex: &self.opengl_texture
-        };
-
-        frame.clear_color(0.0, 0.0, 0.0, 0.0);
-        frame
-            .draw(
-                &self.vertex_buffer,
-                &self.index_buffer,
-                &self.program,
-                &uniforms,
-                &Default::default(),
-            )
-            .unwrap();
-        frame.finish().unwrap();
     }
 }
