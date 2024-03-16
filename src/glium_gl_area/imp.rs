@@ -1,19 +1,11 @@
-use std::io::Cursor;
 use std::{cell::RefCell, rc::Rc};
 
-use glium::{implement_vertex, index::PrimitiveType, program, uniform, Frame, Surface};
+use glium::{uniform, Frame, Surface};
 use gtk::{glib, prelude::*, subclass::prelude::*};
-
-#[derive(Copy, Clone)]
-struct Vertex {
-    position: [f32; 2],
-    tex_coords: [f32; 2],
-}
-implement_vertex!(Vertex, position, tex_coords);
 
 struct Renderer {
     context: Rc<glium::backend::Context>,
-    vertex_buffer: glium::VertexBuffer<Vertex>,
+    vertex_buffer: glium::VertexBuffer<crate::gl::Vertex>,
     index_buffer: glium::IndexBuffer<u16>,
     opengl_texture: glium::texture::CompressedTexture2d,
     program: glium::Program,
@@ -21,81 +13,9 @@ struct Renderer {
 
 impl Renderer {
     fn new(context: Rc<glium::backend::Context>) -> Self {
-        // building a texture with "OpenGL" drawn on it
-        let image = image::load(
-            Cursor::new(&include_bytes!("../../opengl.png")[..]),
-            image::ImageFormat::Png,
-        )
-        .unwrap()
-        .to_rgba8();
-        let image_dimensions = image.dimensions();
-        let image =
-            glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
-        let opengl_texture = glium::texture::CompressedTexture2d::new(&context, image).unwrap();
-
-        // building the vertex buffer, which contains all the vertices that we will draw
-        let vertex_buffer = {
-            glium::VertexBuffer::new(
-                &context,
-                &[
-                    Vertex {
-                        position: [-1.0, -1.0],
-                        tex_coords: [0.0, 0.0],
-                    },
-                    Vertex {
-                        position: [-1.0, 1.0],
-                        tex_coords: [0.0, 1.0],
-                    },
-                    Vertex {
-                        position: [1.0, 1.0],
-                        tex_coords: [1.0, 1.0],
-                    },
-                    Vertex {
-                        position: [1.0, -1.0],
-                        tex_coords: [1.0, 0.0],
-                    },
-                ],
-            )
-            .unwrap()
-        };
-
-        // building the index buffer
-        let index_buffer =
-            glium::IndexBuffer::new(&context, PrimitiveType::TriangleStrip, &[1 as u16, 2, 0, 3])
-                .unwrap();
-
-        // compiling shaders and linking them together
-        let program = program!(&context,
-            140 => {
-                vertex: "
-                    #version 140
-                    uniform mat4 matrix;
-                    in vec2 position;
-                    in vec2 tex_coords;
-                    out vec2 v_tex_coords;
-                    void main() {
-                        gl_Position = matrix * vec4(position, 0.0, 1.0);
-                        v_tex_coords = tex_coords;
-                    }
-                ",
-
-                fragment: "
-                    #version 140
-                    uniform sampler2D tex;
-                    in vec2 v_tex_coords;
-                    out vec4 f_color;
-                    void main() {
-                        f_color = texture(tex, v_tex_coords);
-
-                        // Explicitly setting a color to the fragments works!
-                        // So everything in the drawing pipeline seems to work,
-                        // except sampling from the texture?
-                        // f_color.r = 0.4;
-                    }
-                "
-            },
-        )
-        .unwrap();
+        let opengl_texture = crate::gl::load_texture(&context);
+        let (vertex_buffer, index_buffer) = crate::gl::rectangle_vertices(&context);
+        let program = crate::gl::compile_program(&context);
 
         Self {
             context,

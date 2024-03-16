@@ -945,9 +945,13 @@ version = "0.0.0"
 dependencies = [
  "epoxy",
  "glium",
+ "glutin",
+ "glutin-winit",
  "gtk4",
  "image",
  "libloading",
+ "raw-window-handle 0.5.2",
+ "winit",
 ]
 
 [[package]]

@@ -5,6 +5,9 @@ use gtk::{glib, prelude::*};
 mod glium_gl_area;
 use glium_gl_area::GliumGLArea;
 
+pub mod gl;
+mod glium;
+
 fn main() -> glib::ExitCode {
     // Load GL pointers from epoxy (GL context management library used by GTK).
     {
@@ -23,6 +26,12 @@ fn main() -> glib::ExitCode {
                 .unwrap_or(ptr::null())
         });
     }
+
+    std::thread::spawn(move || {
+        println!("Starting glium window");
+        glium::State::<glium::Application>::run_loop();
+        println!("glium runloop exited");
+    });
 
     let application = gtk::Application::builder()
         .application_id("com.github.gtk-rs.examples.glium-gl-area")
